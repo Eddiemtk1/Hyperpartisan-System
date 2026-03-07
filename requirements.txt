@@ -5,3 +5,4 @@ pydantic
 groq
 sentencepiece
 python-dotenv
+asyncio
