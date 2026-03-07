@@ -97,8 +97,8 @@ def analyze_article(request: ArticleRequest):
         
     except Exception as e:
         print(f"Error during LLM analysis: {str(e)}")
-        # Fallback to a safe neutral response if the API fails
-        return BiasResponse(is_hyperpartisan=False, overall_confidence=0.0, biased_items=[])
+        #If a fail happens, the tront end displays the error
+        raise HTTPException(status_code=500, detail=f"LLM API Error: {str(e)}")
 
 @app.get("/")
 def read_root():
