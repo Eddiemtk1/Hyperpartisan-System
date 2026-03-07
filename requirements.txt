@@ -1,0 +1,7 @@
+#NEED TO UPDATE THE LIST
+fastapi
+uvicorn
+pydantic
+groq
+sentencepiece
+python-dotenv
