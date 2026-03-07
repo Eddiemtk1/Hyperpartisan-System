@@ -7,20 +7,22 @@ from fastapi.middleware.cors import CORSMiddleware
 from groq import Groq
 from dotenv import load_dotenv
 
-# Load environment variables (Create a .env file in your folder with GROQ_API_KEY=your_key)
+# Load environment variables
 load_dotenv()
 
 app = FastAPI(title="TruthLens LLM Backend")
 
+EXTENSION_ID = "dkfgjjeofponpepkplgjembijdcabgce"
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[f"chrome-extension://{EXTENSION_ID}"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Initialize Groq Client securely
+# Initialize Groq securely
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 if not GROQ_API_KEY:
     print("WARNING: GROQ_API_KEY not found in environment variables.")
@@ -51,7 +53,7 @@ def analyze_article(request: ArticleRequest):
     words = request.text.split()[:1500]
     truncated_text = " ".join(words)
 
-    # Prompt Engineering: The magic happens here
+    # Prompt Engineering:
     system_prompt = """You are an expert in media literacy and algorithmic bias detection. 
     Analyze the provided news article text for hyperpartisan, manipulative, or emotionally loaded language.
     Respond ONLY with a valid JSON object using this exact schema:
@@ -82,7 +84,7 @@ def analyze_article(request: ArticleRequest):
             ],
             model="llama-3.1-8b-instant",
             response_format={"type": "json_object"}, 
-            temperature=0.1 # Kept very low so the model extracts exact quotes rather than "creative" paraphrasing
+            temperature=0.1 # Kept very low so the model extracts exact quotes rather than creative paraphrasing
         )
         
         # Parse the JSON returned by the LLM
