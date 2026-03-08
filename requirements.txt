@@ -6,3 +6,5 @@ groq
 sentencepiece
 python-dotenv
 asyncio
+difflib
+re
