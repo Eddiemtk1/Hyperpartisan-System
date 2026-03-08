@@ -1,7 +1,10 @@
 import os
 import json
-import asyncio  
+import asyncio
+import nltk
 from fastapi import FastAPI, HTTPException
+
+nltk.download('punkt_tab', quiet=True)
 from pydantic import BaseModel
 from typing import List
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,7 +16,7 @@ load_dotenv()
 
 app = FastAPI(title="TruthLens LLM Backend")
 
-EXTENSION_ID = "dkfgjjeofponpepkplgjembijdcabgce"
+EXTENSION_ID = os.getenv("EXTENSION_ID", "dkfgjjeofponpepkplgjembijdcabgce")
 
 app.add_middleware(
     CORSMiddleware,
@@ -44,13 +47,32 @@ class ArticleRequest(BaseModel):
     text: str
 
 def chunk_text(text: str, chunk_size: int = 800, overlap: int = 150):
-    words = text.split()
+    sentences = nltk.sent_tokenize(text)
     chunks = []
-    for i in range(0, len(words), chunk_size - overlap):
-        chunk = " ".join(words[i:i + chunk_size])
-        chunks.append(chunk)
-        if i + chunk_size >= len(words):
-            break
+    current_chunk = []
+    current_length = 0
+
+    for sentence in sentences:
+        words = sentence.split()
+        if current_length + len(words) > chunk_size and current_chunk:
+            chunks.append(" ".join(current_chunk))
+            # Basic overlap: keep last few sentences that fit within overlap word count
+            overlap_chunk = []
+            overlap_length = 0
+            for s in reversed(current_chunk):
+                if overlap_length + len(s.split()) <= overlap:
+                    overlap_chunk.insert(0, s)
+                    overlap_length += len(s.split())
+                else:
+                    break
+            current_chunk = overlap_chunk
+            current_length = sum(len(s.split()) for s in current_chunk)
+
+        current_chunk.append(sentence)
+        current_length += len(words)
+
+    if current_chunk:
+        chunks.append(" ".join(current_chunk))
     return chunks
 
 # --- Helper: Async API Caller ---
@@ -112,13 +134,11 @@ async def analyze_article(request: ArticleRequest):
 
         # 3. Aggregate the results from all chunks
         all_items = []
-        total_confidence = 0.0
         partisan_flags = 0
 
         for res in results:
             if res.get("is_hyperpartisan"):
                 partisan_flags += 1
-            total_confidence += res.get("overall_confidence", 0.0)
             all_items.extend(res.get("biased_items", []))
 
         # Remove duplicates (in case the sliding window caught the same sentence twice in the overlap)
@@ -127,7 +147,7 @@ async def analyze_article(request: ArticleRequest):
 
         # Determine final verdict based on aggregated data
         final_is_hyperpartisan = partisan_flags > 0 and len(final_items) > 0
-        final_confidence = (total_confidence / len(results)) if len(results) > 0 else 0.0
+        final_confidence = max([res.get("overall_confidence", 0.0) for res in results]) if len(results) > 0 else 0.0
         
         # Failsafe logic
         if not final_items:
