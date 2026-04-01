@@ -1,5 +1,5 @@
-#Install dependencies pip install -r requirements.txt
-#To run use uvicorn main:app --reload
+#Install dependencies: pip install -r requirements.txt or 
+#To run use: uvicorn main:app --reload
 import os
 import json
 import difflib
@@ -132,7 +132,7 @@ Before writing JSON, silently work through these steps:
 ═══════════════════════════════════════════
 SECTION 5 - OUTPUT FORMAT
 ═══════════════════════════════════════════
-Respond ONLY with a valid JSON object. No preamble, no explanation outside the JSON.
+Respond ONLY with a valid JSON object. Your response MUST start with a curly brace { and end with a curly brace }.
 {
     "article_type": "hard news | opinion | analysis | press release | unclear",
     "is_hyperpartisan": true or false,
@@ -141,18 +141,19 @@ Respond ONLY with a valid JSON object. No preamble, no explanation outside the J
     "biased_items": [
         {
             "location": "headline | body | subheading",
-            "sentence": "EXACT WORD-FOR-WORD SUBSTRING FROM THE TEXT - no paraphrasing",
+            "sentence": "EXACT SUBSTRING FROM TEXT (Replace any double quotes with single quotes)",
             "bias_type": "One of the 7 categories above",
-            "explanation": "One sentence explaining why this fits the category and why it exceeds legitimate editorial language.",
+            "explanation": "Why this fits the category.",
             "confidence": float between 0.0 and 1.0
         }
     ]
 }
 
-STRICT RULES:
-- "sentence" MUST be an exact, unmodified substring of the input text.
+CRITICAL JSON RULES - READ CAREFULLY:
+- DO NOT wrap your final response in a list/array [ ]. It MUST be a single object { }.
+- To prevent JSON errors, if the sentence you extract contains double quotes ("), you MUST change them to single quotes (') in your output.
+- Do not add 'null' or stray text outside the JSON.
 - If the article is neutral or objective, return "is_hyperpartisan": false and "biased_items": [].
-- Never flag a sentence solely because it criticises a political figure - criticism must be manipulative or unsupported to qualify.
 - Do not penalise strong but accurate language.
 """
 
@@ -162,7 +163,7 @@ STRICT RULES:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": request.text}
             ],
-            model="llama-3.1-8b-instant",
+            model="llama-3.3-70b-versatile", #Mixing models: llama-3.1-8b-instant
             response_format={"type": "json_object"}, 
             temperature=0.1 
         )
