@@ -157,7 +157,7 @@ CRITICAL JSON RULES - READ CAREFULLY:
 - Do not penalise strong but accurate language.
 """
 
-        # Process the entire article in one go leveraging the large context window
+        # Process the entire article in one go taking advantage of the large context window
         chat_completion = await groq_client.chat.completions.create(
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -191,7 +191,7 @@ CRITICAL JSON RULES - READ CAREFULLY:
         unique_items = {item["sentence"]: item for item in all_items}.values()
         final_items = list(unique_items)
 
-        # Sort the extracted quotes based on their actual character index in the original text!
+        #Sort the extracted quotes based on their actual character index in the original text
         final_items.sort(key=lambda x: get_chronological_index(request.text, x["sentence"]))
         
         # Now keep the top 5 (which are now guaranteed to be in reading order)
