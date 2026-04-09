@@ -1,4 +1,4 @@
-#Install dependencies: pip install -r requirements.txt or 
+#Install dependencies: pip install -r requirements.txt
 #To run use: uvicorn main:app --reload
 import os
 import json
