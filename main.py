@@ -128,7 +128,7 @@ SECTION 3 - CONFIDENCE SCALE
 0.3-0.49: Weak. Subjective; could be editorial style rather than partisan manipulation.
 0.0-0.29: Minimal. Barely notable; do not include in biased_items.
 
-Rule: Set "is_hyperpartisan": true only if overall_confidence >= 0.65.
+Rule: Set "is_hyperpartisan": true only if overall_confidence >= 0.50.
 Rule: Only include biased_items with individual confidence >= 0.50.
 
 ═══════════════════════════════════════════
@@ -161,6 +161,16 @@ Text: "France already has the largest Muslim population in Europe, leading to se
 Reasoning: The author jumps from a demographic statistic to a massive, unsupported negative conclusion ("serious cultural... problems") without evidence.
 Action: Extract this and flag as "Loaded Language" and "Fear-Mongering". Change double quotes to single quotes in your JSON.
 
+EXAMPLE 4 (OBJECTIVE REPORTING - LEGAL/CONFLICT - DO NOT FLAG):
+Text: "The Ex-UVA dean's lawyer blasted the magazine's editor, calling the article a 'reckless' piece of journalism."
+Reasoning: Words like 'blasted' or 'reckless' are strong, but the journalist is factually describing a legal defamation dispute and quoting the lawyer's official stance. This is standard conflict reporting, not partisan manipulation.
+Action: Do NOT extract this. 
+
+EXAMPLE 5 (HYPERPARTISAN - WEAPONISED OPINION - FLAG THIS):
+Text: "If we truly want to tear down white supremacy, we must start with Planned Parenthood, an organization built on eradicating minorities."
+Reasoning: Even though this might be labeled as 'opinion', it utilizes extreme False Equivalence and Fear-Mongering. It jumps from a historical claim to a massive, inflammatory accusation ("eradicating minorities") to advance a political agenda.
+Action: Extract this and flag as "False Equivalence" and "Loaded Language".
+
 ═══════════════════════════════════════════
 SECTION 5 - OUTPUT FORMAT
 ═══════════════════════════════════════════
@@ -190,17 +200,22 @@ CRITICAL JSON RULES - READ CAREFULLY:
 - Do not penalise strong but accurate language.
 """
 
+        # Safely combine title and text if the title exists
+        article_content = request.text
+        if request.title:
+            article_content = f"HEADLINE: {request.title}\n\nBODY TEXT:\n{request.text}"
+
         # Process the entire article in one go taking advantage of the large context window
         chat_completion = await llm_client.chat.completions.create(
-            model="openai/gpt-4o-mini", #openai/gpt-4o-mini, meta-llama/llama-3.3-70b-instruct
+            model="deepseek/deepseek-v3.2",  # openai/gpt-4o-mini, meta-llama/llama-3.3-70b-instruct, deepseek/deepseek-v3.2
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": request.text},
+                {"role": "user", "content": article_content},
             ],
             # If you are using JSON mode, keep this, otherwise you can remove it
             response_format={"type": "json_object"},
             temperature=0.0,
-            extra_body={"provider": {"sort": "throughput"}}
+            extra_body={"provider": {"sort": "throughput"}},
         )
 
         # Parse the single JSON response
@@ -212,6 +227,11 @@ CRITICAL JSON RULES - READ CAREFULLY:
         final_is_hyperpartisan = res.get("is_hyperpartisan", False)
         final_confidence = res.get("overall_confidence", 0.0)
         all_items = res.get("biased_items", [])
+
+        # BACKEND GUARDRAIL: Force it to False if confidence is too low!
+        if final_is_hyperpartisan and final_confidence < 0.50:
+            final_is_hyperpartisan = False
+            all_items = []  # Wipe out the items to be safe
 
         # Split original text for difflib matching
         original_sentences = [
