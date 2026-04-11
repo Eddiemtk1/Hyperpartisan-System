@@ -36,6 +36,7 @@ groq_client = AsyncGroq(api_key=GROQ_API_KEY)
 class BiasedItem(BaseModel):
     location: str          
     sentence: str
+    is_quote_or_reported_speech: bool
     bias_type: str
     explanation: str
     confidence: float
@@ -130,6 +131,26 @@ Before writing JSON, silently work through these steps:
 5. Select a maximum of 5 items with the highest confidence scores only.
 
 ═══════════════════════════════════════════
+SECTION 4.5 - EXAMPLES (CRITICAL FOR CALIBRATION)
+═══════════════════════════════════════════
+Below are examples of how you should classify specific sentences. Pay close attention to objective reporting versus manipulative framing.
+
+EXAMPLE 1 (OBJECTIVE REPORTING - DO NOT FLAG):
+Text: "Critics, including UN human rights chief Volker Türk, have described the new law as discriminatory. Türk also said its application would 'constitute a war crime'."
+Reasoning: The journalist is neutrally reporting what a public figure said. The journalist is NOT making the claim themselves. 
+Action: Do NOT extract this. If the whole article is like this, return "is_hyperpartisan": false.
+
+EXAMPLE 2 (OBJECTIVE REPORTING - DO NOT FLAG):
+Text: "Amnesty International urged Israeli authorities to repeal the new law."
+Reasoning: "Repeal" is a standard, factual legal term describing the organization's action. It is not loaded language.
+Action: Do NOT extract this.
+
+EXAMPLE 3 (HYPERPARTISAN - FLAG THIS):
+Text: "France already has the largest Muslim population in Europe, leading to serious cultural, societal, and even security problems."
+Reasoning: The author jumps from a demographic statistic to a massive, unsupported negative conclusion ("serious cultural... problems") without evidence.
+Action: Extract this and flag as "Loaded Language" and "Fear-Mongering". Change double quotes to single quotes in your JSON.
+
+═══════════════════════════════════════════
 SECTION 5 - OUTPUT FORMAT
 ═══════════════════════════════════════════
 Respond ONLY with a valid JSON object. Your response MUST start with a curly brace { and end with a curly brace }.
@@ -142,6 +163,7 @@ Respond ONLY with a valid JSON object. Your response MUST start with a curly bra
         {
             "location": "headline | body | subheading",
             "sentence": "EXACT SUBSTRING FROM TEXT (Replace any double quotes with single quotes)",
+            "is_quote_or_reported_speech": true or false,
             "bias_type": "One of the 7 categories above",
             "explanation": "Why this fits the category.",
             "confidence": float between 0.0 and 1.0

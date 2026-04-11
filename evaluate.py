@@ -2,6 +2,7 @@
 
 import requests
 import pandas as pd
+import time
 from sklearn.metrics import (
     accuracy_score, 
     precision_score, 
@@ -13,7 +14,7 @@ from sklearn.metrics import (
 
 # 1. Configuration
 API_URL = "http://127.0.0.1:8000/analyse"
-CSV_FILE = "semeval_sample_with_titles.csv"
+CSV_FILE = "semeval_sample_with_titles[20].csv"
 
 def run_evaluation():
     print("Loading dataset...")
@@ -58,6 +59,8 @@ def run_evaluation():
                 
         except Exception as e:
              print(f"[{index + 1}/{len(df)}] Connection Error (Is Uvicorn running?)")
+
+        time.sleep(5)
 
     # 3. Calculate and Print Metrics
     print("\n" + "="*40)
