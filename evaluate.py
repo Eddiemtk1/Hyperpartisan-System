@@ -60,8 +60,6 @@ def run_evaluation():
         except Exception as e:
              print(f"[{index + 1}/{len(df)}] Connection Error (Is Uvicorn running?)")
 
-        time.sleep(5)
-
     # 3. Calculate and Print Metrics
     print("\n" + "="*40)
     print("🏆 EVALUATION RESULTS 🏆")

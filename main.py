@@ -1,17 +1,17 @@
-#Install dependencies: pip install -r requirements.txt
-#To run use: uvicorn main:app --reload
+# Install dependencies: pip install -r requirements.txt
+# To run use: uvicorn main:app --reload
 import os
 import json
 import difflib
-import re  
+import re
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List
 from fastapi.middleware.cors import CORSMiddleware
-from groq import AsyncGroq
+from openai import AsyncOpenAI
 from dotenv import load_dotenv
 
-#Load environment variables
+# Load environment variables
 load_dotenv()
 
 app = FastAPI(title="TruthLens LLM Backend")
@@ -26,30 +26,40 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-#Groq API
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-if not GROQ_API_KEY:
-    print("WARNING: GROQ_API_KEY not found in environment variables.")
-groq_client = AsyncGroq(api_key=GROQ_API_KEY)
+# OPENROUTER API
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+if not OPENROUTER_API_KEY:
+    print("WARNING: OPENROUTER_API_KEY not found in environment variables.")
+
+# We use AsyncOpenAI because your FastAPI endpoint is async
+llm_client = AsyncOpenAI(
+    base_url="https://openrouter.ai/api/v1",
+    api_key=OPENROUTER_API_KEY,
+)
+
 
 # --- UPDATED PYDANTIC DATA MODELS ---
 class BiasedItem(BaseModel):
-    location: str          
+    location: str
     sentence: str
     is_quote_or_reported_speech: bool
     bias_type: str
     explanation: str
     confidence: float
 
+
 class BiasResponse(BaseModel):
-    article_type: str      
+    article_type: str
     is_hyperpartisan: bool
     overall_confidence: float
-    reasoning_summary: str 
+    reasoning_summary: str
     biased_items: List[BiasedItem]
 
+
 class ArticleRequest(BaseModel):
+    title: str = ""
     text: str
+
 
 # --- HELPER: SMART CHRONOLOGICAL INDEXER ---
 def get_chronological_index(full_text: str, quote: str) -> int:
@@ -57,20 +67,21 @@ def get_chronological_index(full_text: str, quote: str) -> int:
     idx = full_text.find(quote)
     if idx != -1:
         return idx
-        
-    # 2. If the AI hallucinated punctuation (like missing inner quotes), 
+
+    # 2. If the AI hallucinated punctuation (like missing inner quotes),
     # strip all punctuation from both strings and try to find the relative position!
-    clean_text = re.sub(r'[^\w\s]', '', full_text.lower())
-    clean_quote = re.sub(r'[^\w\s]', '', quote.lower())
-    
+    clean_text = re.sub(r"[^\w\s]", "", full_text.lower())
+    clean_quote = re.sub(r"[^\w\s]", "", quote.lower())
+
     idx = clean_text.find(clean_quote)
     if idx != -1:
         return idx
-        
+
     # 3. Absolute failsafe (push to bottom)
     return 999999
 
-# Note: API route remains "/analyse" to avoid breaking frontend fetching, 
+
+# Note: API route remains "/analyse" to avoid breaking frontend fetching,
 @app.post("/analyse", response_model=BiasResponse)
 async def analyse_article(request: ArticleRequest):
     if not request.text:
@@ -180,19 +191,21 @@ CRITICAL JSON RULES - READ CAREFULLY:
 """
 
         # Process the entire article in one go taking advantage of the large context window
-        chat_completion = await groq_client.chat.completions.create(
+        chat_completion = await llm_client.chat.completions.create(
+            model="openai/gpt-4o-mini", #openai/gpt-4o-mini, meta-llama/llama-3.3-70b-instruct
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": request.text}
+                {"role": "user", "content": request.text},
             ],
-            model="llama-3.3-70b-versatile", #Mixing models: llama-3.1-8b-instant
-            response_format={"type": "json_object"}, 
-            temperature=0.1 
+            # If you are using JSON mode, keep this, otherwise you can remove it
+            response_format={"type": "json_object"},
+            temperature=0.0,
+            extra_body={"provider": {"sort": "throughput"}}
         )
-        
+
         # Parse the single JSON response
         res = json.loads(chat_completion.choices[0].message.content)
-        
+
         # --- EXTRACT NEW FIELDS ---
         article_type = res.get("article_type", "unclear")
         reasoning_summary = res.get("reasoning_summary", "No summary provided.")
@@ -201,11 +214,17 @@ CRITICAL JSON RULES - READ CAREFULLY:
         all_items = res.get("biased_items", [])
 
         # Split original text for difflib matching
-        original_sentences = [s.strip() for s in re.split(r'(?<=[.!?])(?:\'|"|”|’)?\s+|\n+', request.text) if len(s.strip()) > 10]
-        
+        original_sentences = [
+            s.strip()
+            for s in re.split(r'(?<=[.!?])(?:\'|"|”|’)?\s+|\n+', request.text)
+            if len(s.strip()) > 10
+        ]
+
         for item in all_items:
             llm_sentence = item.get("sentence", "")
-            matches = difflib.get_close_matches(llm_sentence, original_sentences, n=1, cutoff=0.7)
+            matches = difflib.get_close_matches(
+                llm_sentence, original_sentences, n=1, cutoff=0.7
+            )
             if matches:
                 item["sentence"] = matches[0]
 
@@ -213,12 +232,14 @@ CRITICAL JSON RULES - READ CAREFULLY:
         unique_items = {item["sentence"]: item for item in all_items}.values()
         final_items = list(unique_items)
 
-        #Sort the extracted quotes based on their actual character index in the original text
-        final_items.sort(key=lambda x: get_chronological_index(request.text, x["sentence"]))
-        
+        # Sort the extracted quotes based on their actual character index in the original text
+        final_items.sort(
+            key=lambda x: get_chronological_index(request.text, x["sentence"])
+        )
+
         # Now keep the top 5 (which are now guaranteed to be in reading order)
         final_items = final_items[:5]
-        
+
         # Final validation checks
         if not final_items:
             final_is_hyperpartisan = False
@@ -230,12 +251,13 @@ CRITICAL JSON RULES - READ CAREFULLY:
             is_hyperpartisan=final_is_hyperpartisan,
             overall_confidence=round(final_confidence, 2),
             reasoning_summary=reasoning_summary,
-            biased_items=final_items
+            biased_items=final_items,
         )
-            
+
     except Exception as e:
         print(f"Error during LLM analysis: {str(e)}")
         raise HTTPException(status_code=500, detail=f"LLM API Error: {str(e)}")
+
 
 @app.get("/")
 def read_root():
