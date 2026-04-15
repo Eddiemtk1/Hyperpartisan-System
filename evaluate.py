@@ -1,8 +1,10 @@
-# pip install pandas scikit-learn requests
+#pip install pandas scikit-learn requests
+#pip install matplotlib
 
 import requests
 import pandas as pd
 import time
+import matplotlib.pyplot as plt
 from sklearn.metrics import (
     accuracy_score,
     precision_score,
@@ -10,6 +12,7 @@ from sklearn.metrics import (
     f1_score,
     confusion_matrix,
     classification_report,
+    ConfusionMatrixDisplay,
 )
 
 # 1. Configuration
