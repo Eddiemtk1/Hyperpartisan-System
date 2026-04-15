@@ -114,6 +114,21 @@ def run_evaluation():
         )
     )
 
+# --- NEW CODE: Visual Confusion Matrix Plot ---
+    print("\nGenerating Confusion Matrix Plot...")
+    cm = confusion_matrix(actual_labels, predicted_labels)
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["Neutral", "Hyperpartisan"])
+    
+    # Plot it with a blue color map
+    disp.plot(cmap=plt.cm.Blues)
+    plt.title("TruthLens Evaluation: Confusion Matrix")
+    
+    # Show the plot in a pop-up window
+    plt.show() 
+
+    # Tip: If you want to save it as an image instead of having a pop-up, 
+    # comment out plt.show() and uncomment the line below:
+    # plt.savefig('confusion_matrix.png', bbox_inches='tight')
 
 if __name__ == "__main__":
     run_evaluation()
