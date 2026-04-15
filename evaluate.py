@@ -13,6 +13,7 @@ from sklearn.metrics import (
     confusion_matrix,
     classification_report,
     ConfusionMatrixDisplay,
+    matthews_corrcoef
 )
 
 # 1. Configuration
@@ -97,11 +98,13 @@ def run_evaluation():
     prec = precision_score(actual_labels, predicted_labels)
     rec = recall_score(actual_labels, predicted_labels)
     f1 = f1_score(actual_labels, predicted_labels)
+    mcc = matthews_corrcoef(actual_labels, predicted_labels)
 
     print(f"Accuracy:  {acc:.2f} (Overall correctness)")
     print(f"Precision: {prec:.2f} (When it flags bias, how often is it right?)")
     print(f"Recall:    {rec:.2f} (How much of the total bias did it catch?)")
     print(f"F1-Score:  {f1:.2f} (Balance between Precision and Recall)")
+    print(f"MCC:       {mcc:.2f} (Overall quality score from -1 to +1)")
 
     print("\n--- Confusion Matrix ---")
     tn, fp, fn, tp = confusion_matrix(actual_labels, predicted_labels).ravel()
