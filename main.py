@@ -31,14 +31,11 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 if not OPENROUTER_API_KEY:
     print("WARNING: OPENROUTER_API_KEY not found in environment variables.")
 
-# We use AsyncOpenAI because your FastAPI endpoint is async
 llm_client = AsyncOpenAI(
     base_url="https://openrouter.ai/api/v1",
     api_key=OPENROUTER_API_KEY,
 )
 
-
-# --- UPDATED PYDANTIC DATA MODELS ---
 class BiasedItem(BaseModel):
     location: str
     sentence: str
@@ -63,32 +60,26 @@ class ArticleRequest(BaseModel):
 
 # --- HELPER: SMART CHRONOLOGICAL INDEXER ---
 def get_chronological_index(full_text: str, quote: str) -> int:
-    # 1. Try an exact string match first
     idx = full_text.find(quote)
     if idx != -1:
         return idx
 
-    # 2. If the AI hallucinated punctuation (like missing inner quotes),
-    # strip all punctuation from both strings and try to find the relative position!
+    #strips all punctuation from both strings and tries to find the relative position
     clean_text = re.sub(r"[^\w\s]", "", full_text.lower())
     clean_quote = re.sub(r"[^\w\s]", "", quote.lower())
 
     idx = clean_text.find(clean_quote)
     if idx != -1:
         return idx
-
-    # 3. Absolute failsafe (push to bottom)
     return 999999
 
 
-# Note: API route remains "/analyse" to avoid breaking frontend fetching,
 @app.post("/analyse", response_model=BiasResponse)
 async def analyse_article(request: ArticleRequest):
     if not request.text:
         raise HTTPException(status_code=400, detail="No text provided")
 
     try:
-        # --- UPDATED SYSTEM PROMPT (ASCII SAFE & UK ENGLISH) ---
         system_prompt = """You are an expert in media literacy, political communication, and algorithmic bias detection.
 Your task is to analyse news article text for HYPERPARTISAN language.
 
@@ -200,12 +191,12 @@ CRITICAL JSON RULES - READ CAREFULLY:
 - Do not penalise strong but accurate language.
 """
 
-        # Safely combine title and text if the title exists
+        #combine title and text if the title exists
         article_content = request.text
         if request.title:
             article_content = f"HEADLINE: {request.title}\n\nBODY TEXT:\n{request.text}"
 
-        # Process the entire article in one go taking advantage of the large context window
+        #Process the entire article in one push
         chat_completion = await llm_client.chat.completions.create(
             model="deepseek/deepseek-v3.2",  # openai/gpt-4o-mini, meta-llama/llama-3.3-70b-instruct, deepseek/deepseek-v3.2
             messages=[
@@ -218,22 +209,19 @@ CRITICAL JSON RULES - READ CAREFULLY:
             extra_body={"provider": {"sort": "throughput"}},
         )
 
-        # Parse the single JSON response
         res = json.loads(chat_completion.choices[0].message.content)
 
-        # --- EXTRACT NEW FIELDS ---
         article_type = res.get("article_type", "unclear")
         reasoning_summary = res.get("reasoning_summary", "No summary provided.")
         final_is_hyperpartisan = res.get("is_hyperpartisan", False)
         final_confidence = res.get("overall_confidence", 0.0)
         all_items = res.get("biased_items", [])
 
-        # BACKEND GUARDRAIL: Force it to False if confidence is too low!
+        #BACKEND GUARDRAIL: Force it to display false if confidence dropsbelow 50%
         if final_is_hyperpartisan and final_confidence < 0.50:
             final_is_hyperpartisan = False
-            all_items = []  # Wipe out the items to be safe
+            all_items = [] 
 
-        # Split original text for difflib matching
         original_sentences = [
             s.strip()
             for s in re.split(r'(?<=[.!?])(?:\'|"|”|’)?\s+|\n+', request.text)
@@ -248,24 +236,22 @@ CRITICAL JSON RULES - READ CAREFULLY:
             if matches:
                 item["sentence"] = matches[0]
 
-        # Remove exact duplicates based on the matched sentence
+        #Remove exact duplicates based on the matched sentence
         unique_items = {item["sentence"]: item for item in all_items}.values()
         final_items = list(unique_items)
 
-        # Sort the extracted quotes based on their actual character index in the original text
+        #Sort the extracted quotes based on where they appear in the original text
         final_items.sort(
             key=lambda x: get_chronological_index(request.text, x["sentence"])
         )
 
-        # Now keep the top 5 (which are now guaranteed to be in reading order)
+        #Keep the top 5
         final_items = final_items[:5]
 
-        # Final validation checks
         if not final_items:
             final_is_hyperpartisan = False
             final_confidence = 0.0
 
-        # --- RETURN UPDATED RESPONSE MODEL ---
         return BiasResponse(
             article_type=article_type,
             is_hyperpartisan=final_is_hyperpartisan,
