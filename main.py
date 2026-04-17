@@ -198,7 +198,7 @@ CRITICAL JSON RULES - READ CAREFULLY:
 
         #Process the entire article in one push
         chat_completion = await llm_client.chat.completions.create(
-            model="deepseek/deepseek-v3.2",  # openai/gpt-4o-mini, meta-llama/llama-3.3-70b-instruct, deepseek/deepseek-v3.2
+            model="google/gemini-2.5-flash",  # openai/gpt-4o-mini, meta-llama/llama-3.3-70b-instruct, deepseek/deepseek-v3.2, google/gemini-2.5-flash
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": article_content},

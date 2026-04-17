@@ -16,7 +16,6 @@ from sklearn.metrics import (
     matthews_corrcoef
 )
 
-# 1. Configuration
 API_URL = "http://127.0.0.1:8000/analyse"
 CSV_FILE = "semeval_random_sample_with_titles[20].csv"
 
@@ -51,9 +50,8 @@ def run_evaluation():
         f"Starting evaluation of {len(df)} articles. This may take a few minutes...\n"
     )
 
-    # 2. Iterate through the dataset
+    #Iterate through the dataset
     for index, row in df.iterrows():
-        # --- NEW CODE: Extract and combine Title and Text ---
         article_title = str(row["title"])
         article_body = str(row["text"])
 
@@ -73,7 +71,6 @@ def run_evaluation():
                 actual_labels.append(true_label)
                 predicted_labels.append(predicted_label)
 
-                # Print the title in the console so you can see which article is being processed!
                 short_title = (
                     article_title[:40] + "..."
                     if len(article_title) > 40
@@ -88,7 +85,7 @@ def run_evaluation():
         except Exception as e:
             print(f"[{index + 1}/{len(df)}] Connection Error (Is Uvicorn running?)")
 
-    # 3. Calculate and Print Metrics
+    #Calculate and Print Metrics
     print("\n" + "=" * 40)
     print("🏆 EVALUATION RESULTS 🏆")
     print("=" * 40)
@@ -120,7 +117,7 @@ def run_evaluation():
         )
     )
 
-# --- NEW CODE: Visual Confusion Matrix Plot ---
+#Confusion Matrix
     print("\nGenerating Confusion Matrix Plot...")
     cm = confusion_matrix(actual_labels, predicted_labels)
     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["Neutral", "Hyperpartisan"])
