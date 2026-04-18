@@ -4,6 +4,7 @@
 import requests
 import pandas as pd
 import time
+import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.metrics import (
@@ -19,7 +20,7 @@ from sklearn.metrics import (
 
 # 1. Configuration
 API_URL = "http://127.0.0.1:8000/analyse"
-CSV_FILE = "semeval_sample_with_titles.csv" # Ensure this matches your file!
+CSV_FILE = "semeval_sample_with_titles.csv"
 
 def run_evaluation():
     print("Loading dataset...")
@@ -84,23 +85,29 @@ def run_evaluation():
         results_df.to_csv("evaluation_latencies.csv", index=False)
         print("\n💾 Saved raw latency data to 'evaluation_latencies.csv'")
 
-    # 4. Generate the Latency Graph
+# 4. Generate the Latency Distribution Graph (Upgraded for Level 6)
     if latencies:
+        import seaborn as sns # Ensure this is imported
         plt.figure(figsize=(10, 6))
-        plt.plot(range(1, len(latencies) + 1), latencies, marker='o', linestyle='-', color='b', label='Individual Article Latency')
+        sns.set_theme(style="whitegrid")
+        
+        # Create a histogram to show distribution
+        sns.histplot(latencies, bins=10, kde=True, color="royalblue", edgecolor="black")
         
         mean_latency = np.mean(latencies)
-        plt.axhline(y=mean_latency, color='r', linestyle='--', label=f'Mean Latency ({mean_latency:.2f}s)')
+        p95_latency = np.percentile(latencies, 95)
         
-        plt.title('API Latency per Article')
-        plt.xlabel('Article Number')
-        plt.ylabel('Latency (Seconds)')
-        plt.grid(True, linestyle=':', alpha=0.6)
+        plt.axvline(mean_latency, color='red', linestyle='dashed', linewidth=2, label=f'Mean: {mean_latency:.2f}s')
+        plt.axvline(p95_latency, color='orange', linestyle='dashed', linewidth=2, label=f'95th Percentile: {p95_latency:.2f}s')
+        
+        plt.title('TruthLens Latency Distribution (Zero-Shot Inference)', fontsize=14, fontweight='bold')
+        plt.xlabel('Latency (Seconds)', fontsize=12)
+        plt.ylabel('Frequency', fontsize=12)
         plt.legend()
         
-        plt.savefig("latency_graph.png", dpi=300, bbox_inches='tight')
-        print("📈 Saved Latency Graph to 'latency_graph.png'")
-        plt.clf() # Clear the figure so the next plot doesn't overlap!
+        plt.savefig("latency_histogram.png", dpi=300, bbox_inches='tight')
+        print("✅ Saved Latency Histogram to 'latency_histogram.png'")
+        plt.clf() # Clear the figure
 
     # 5. Calculate and Print Text Metrics
     print("\n" + "=" * 40)
