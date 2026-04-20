@@ -58,7 +58,7 @@ class ArticleRequest(BaseModel):
     text: str
 
 
-# --- HELPER: SMART CHRONOLOGICAL INDEXER ---
+#Chronological index
 def get_chronological_index(full_text: str, quote: str) -> int:
     idx = full_text.find(quote)
     if idx != -1:
@@ -203,7 +203,6 @@ CRITICAL JSON RULES - READ CAREFULLY:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": article_content},
             ],
-            # If you are using JSON mode, keep this, otherwise you can remove it
             response_format={"type": "json_object"},
             temperature=0.0,
             extra_body={"provider": {"sort": "throughput"}},
@@ -217,7 +216,7 @@ CRITICAL JSON RULES - READ CAREFULLY:
         final_confidence = res.get("overall_confidence", 0.0)
         all_items = res.get("biased_items", [])
 
-        #BACKEND GUARDRAIL: Force it to display false if confidence dropsbelow 50%
+        #BACKEND GUARDRAIL: Force extension to display false if confidence dropsbelow 50%
         if final_is_hyperpartisan and final_confidence < 0.50:
             final_is_hyperpartisan = False
             all_items = [] 
@@ -245,7 +244,7 @@ CRITICAL JSON RULES - READ CAREFULLY:
             key=lambda x: get_chronological_index(request.text, x["sentence"])
         )
 
-        #Keep the top 5
+        #Keep the top 5 results
         final_items = final_items[:5]
 
         if not final_items:
