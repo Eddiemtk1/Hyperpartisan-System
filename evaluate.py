@@ -20,7 +20,7 @@ from sklearn.metrics import (
 
 # 1. Configuration
 API_URL = "http://127.0.0.1:8000/analyse"
-CSV_FILE = "semeval_sample_with_titles.csv"
+CSV_FILE = "semeval_random_sample_with_titles[50].csv"
 
 def run_evaluation():
     print("Loading dataset...")
@@ -105,8 +105,8 @@ def run_evaluation():
         plt.ylabel('Frequency', fontsize=12)
         plt.legend()
         
-        plt.savefig("latency_histogram.png", dpi=300, bbox_inches='tight')
-        print("✅ Saved Latency Histogram to 'latency_histogram.png'")
+        plt.savefig("latency_histogram1.png", dpi=300, bbox_inches='tight')
+        print("✅ Saved Latency Histogram to 'latency_histogram1.png'")
         plt.clf() # Clear the figure
 
     # 5. Calculate and Print Text Metrics
@@ -138,14 +138,26 @@ def run_evaluation():
         # 6. Generate the Confusion Matrix Visual
         print("\nGenerating Confusion Matrix Plot...")
         cm = confusion_matrix(actual_labels, predicted_labels)
+        
+        # Create a fresh figure to prevent overlap with the latency histogram
+        fig, ax = plt.subplots(figsize=(6, 5))
+        
         disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["Neutral", "Hyperpartisan"])
         
-        disp.plot(cmap=plt.cm.Blues)
-        plt.title("TruthLens Evaluation: Confusion Matrix")
+        # Plot with the Blues colormap and force integer formatting ('d')
+        disp.plot(cmap=plt.cm.Blues, ax=ax, values_format='d')
         
-        # Saving it as a file instead of showing it as a popup so the script finishes cleanly
-        plt.savefig('confusion_matrix.png', bbox_inches='tight')
-        print("🟦 Saved Confusion Matrix to 'confusion_matrix.png'")
+        # Apply specific styling, now including both Actual and Predicted labels
+        plt.title("TruthLens Evaluation: Confusion Matrix", fontsize=14)
+        ax.set_ylabel("Actual label", fontsize=12) 
+        ax.set_xlabel("Predicted label", fontsize=12)
+
+        ax.grid(False)
+        
+        # Saving it as a high-resolution file
+        plt.tight_layout()
+        plt.savefig('confusion_matrix1.png', dpi=300, bbox_inches='tight')
+        print("🟦 Saved Confusion Matrix to 'confusion_matrix1.png'")
 
 if __name__ == "__main__":
     run_evaluation()
