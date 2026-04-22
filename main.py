@@ -207,6 +207,7 @@ CRITICAL JSON RULES - READ CAREFULLY:
             ],
             response_format={"type": "json_object"},
             temperature=0.0,
+            max_tokens=2000,
             extra_body={"provider": {"sort": "throughput"}},
         )
 
@@ -215,7 +216,12 @@ CRITICAL JSON RULES - READ CAREFULLY:
         article_type = res.get("article_type", "unclear")
         reasoning_summary = res.get("reasoning_summary", "No summary provided.")
         final_is_hyperpartisan = res.get("is_hyperpartisan", False)
-        final_confidence = res.get("overall_confidence", 0.0)
+
+        try:
+            final_confidence = float(res.get("overall_confidence", 0.0))
+        except (ValueError, TypeError):
+            final_confidence = 0.0
+
         all_items = res.get("biased_items", [])
 
         #BACKEND GUARDRAIL: Force extension to display false if confidence dropsbelow 50%
