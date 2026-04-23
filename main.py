@@ -11,11 +11,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
 
-# Load environment variables
+# Load environment variables from env
 load_dotenv()
 
 app = FastAPI(title="TruthLens LLM Backend")
 
+#Only allows the extension to call this API
 EXTENSION_ID = os.getenv("EXTENSION_ID")
 
 app.add_middleware(
@@ -27,6 +28,7 @@ app.add_middleware(
 )
 
 # OPENROUTER API
+#API key in env as to not hardcode it
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 if not OPENROUTER_API_KEY:
     print("WARNING: OPENROUTER_API_KEY not found in environment variables.")
@@ -36,6 +38,7 @@ llm_client = AsyncOpenAI(
     api_key=OPENROUTER_API_KEY,
 )
 
+#Pydantic classes
 class BiasedItem(BaseModel):
     location: str
     sentence: str
@@ -74,6 +77,7 @@ def get_chronological_index(full_text: str, quote: str) -> int:
     return 999999
 
 
+#/analyse endpoint
 @app.post("/analyse", response_model=BiasResponse)
 async def analyse_article(request: ArticleRequest):
     if not request.text:
@@ -200,6 +204,7 @@ CRITICAL JSON RULES - READ CAREFULLY:
         #Process the entire article in one push
         chat_completion = await llm_client.chat.completions.create(
             model="meta-llama/llama-3.3-70b-instruct:nitro",  
+            # Models are from OpenRouter
             # openai/gpt-4o-mini, meta-llama/llama-3.3-70b-instruct, deepseek/deepseek-v3.2, google/gemini-2.5-flash
             # qwen/qwen-2.5-72b-instruct, meta-llama/llama-3.1-8b-instruct, x-ai/grok-4.1-fast
             messages=[
@@ -212,6 +217,7 @@ CRITICAL JSON RULES - READ CAREFULLY:
             extra_body={"provider": {"sort": "throughput"}},
         )
 
+        #Post processing
         res = json.loads(chat_completion.choices[0].message.content)
 
         article_type = res.get("article_type", "unclear")
@@ -230,6 +236,7 @@ CRITICAL JSON RULES - READ CAREFULLY:
             final_is_hyperpartisan = False
             all_items = [] 
 
+        #Match each sentnce back to the original in article
         original_sentences = [
             s.strip()
             for s in re.split(r'(?<=[.!?])(?:\'|"|”|’)?\s+|\n+', request.text)
@@ -256,6 +263,7 @@ CRITICAL JSON RULES - READ CAREFULLY:
         #Keep the top 5 results
         final_items = final_items[:5]
 
+        #If no results remai after filtering, force non-hyperpartisan
         if not final_items:
             final_is_hyperpartisan = False
             final_confidence = 0.0

@@ -18,13 +18,14 @@ from sklearn.metrics import (
     matthews_corrcoef
 )
 
-# 1. Configuration
+# Configuration
 API_URL = "http://127.0.0.1:8000/analyse"
 CSV_FILE = "semeval_random_sample_with_titles[50].csv"
 
 def run_evaluation():
     print("Loading dataset...")
     try:
+        #Load dataset
         df = pd.read_csv(CSV_FILE)
     except FileNotFoundError:
         print(f"Error: Could not find {CSV_FILE}. Please create it first.")
@@ -38,7 +39,7 @@ def run_evaluation():
 
     print(f"Starting evaluation of {len(df)} articles. This may take a few minutes...\n")
 
-    # 2. Iterate through the dataset
+    #Iterate through the dataset
     for index, row in df.iterrows():
         article_title = str(row["title"])
         article_body = str(row["text"])
@@ -46,6 +47,7 @@ def run_evaluation():
         true_label = bool(row["true_label"])
 
         try:
+            #meaure the latency for a single request
             start_time = time.perf_counter()
             
             response = requests.post(API_URL, json={"text": combined_text})
@@ -62,6 +64,7 @@ def run_evaluation():
                 actual_labels.append(true_label)
                 predicted_labels.append(predicted_label)
 
+                #stores the results
                 detailed_data.append({
                     "Article_Number": index + 1,
                     "Title": article_title,
@@ -111,6 +114,7 @@ def run_evaluation():
     print("🏆 EVALUATION RESULTS 🏆")
     print("=" * 40)
 
+    #Metrics
     if actual_labels:
         acc = accuracy_score(actual_labels, predicted_labels)
         prec = precision_score(actual_labels, predicted_labels)
@@ -132,7 +136,7 @@ def run_evaluation():
         print("\n--- Detailed Report ---")
         print(classification_report(actual_labels, predicted_labels, target_names=["Neutral", "Hyperpartisan"]))
 
-        # Generate the Confusion Matrix Visual
+        # Generate the Confusion Matrix 
         print("\nGenerating Confusion Matrix Plot...")
         cm = confusion_matrix(actual_labels, predicted_labels)
         
