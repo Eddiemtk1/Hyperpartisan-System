@@ -79,6 +79,7 @@ async def analyse_article(request: ArticleRequest):
     if not request.text:
         raise HTTPException(status_code=400, detail="No text provided")
 
+#Here is my prompt, it went through many iteration until it achieved a satisfactory level
     try:
         system_prompt = """You are an expert in media literacy, political communication, and algorithmic bias detection.
 Your task is to analyse news article text for HYPERPARTISAN language.

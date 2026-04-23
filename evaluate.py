@@ -46,12 +46,10 @@ def run_evaluation():
         true_label = bool(row["true_label"])
 
         try:
-            # --- START CLOCK ---
             start_time = time.perf_counter()
             
             response = requests.post(API_URL, json={"text": combined_text})
             
-            # --- STOP CLOCK ---
             end_time = time.perf_counter()
 
             if response.status_code == 200:
@@ -64,7 +62,6 @@ def run_evaluation():
                 actual_labels.append(true_label)
                 predicted_labels.append(predicted_label)
 
-                # Save exact data for the CSV
                 detailed_data.append({
                     "Article_Number": index + 1,
                     "Title": article_title,
@@ -79,13 +76,13 @@ def run_evaluation():
         except Exception as e:
             print(f"[{index + 1}/{len(df)}] Connection Error (Is Uvicorn running?)")
 
-    # 3. Export the Raw Data to a new CSV
+    #Export the Raw Data to a new CSV
     if detailed_data:
         results_df = pd.DataFrame(detailed_data)
         results_df.to_csv("evaluation_latencies.csv", index=False)
         print("\n💾 Saved raw latency data to 'evaluation_latencies.csv'")
 
-# 4. Generate the Latency Distribution Graph (Upgraded for Level 6)
+#Generate the Latency Distribution Graph
     if latencies:
         import seaborn as sns # Ensure this is imported
         plt.figure(figsize=(10, 6))
@@ -109,7 +106,7 @@ def run_evaluation():
         print("✅ Saved Latency Histogram to 'latency_histogram1.png'")
         plt.clf() # Clear the figure
 
-    # 5. Calculate and Print Text Metrics
+    # Calculate and print the metrics
     print("\n" + "=" * 40)
     print("🏆 EVALUATION RESULTS 🏆")
     print("=" * 40)
@@ -135,26 +132,23 @@ def run_evaluation():
         print("\n--- Detailed Report ---")
         print(classification_report(actual_labels, predicted_labels, target_names=["Neutral", "Hyperpartisan"]))
 
-        # 6. Generate the Confusion Matrix Visual
+        # Generate the Confusion Matrix Visual
         print("\nGenerating Confusion Matrix Plot...")
         cm = confusion_matrix(actual_labels, predicted_labels)
         
-        # Create a fresh figure to prevent overlap with the latency histogram
         fig, ax = plt.subplots(figsize=(6, 5))
         
         disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["Neutral", "Hyperpartisan"])
         
-        # Plot with the Blues colormap and force integer formatting ('d')
         disp.plot(cmap=plt.cm.Blues, ax=ax, values_format='d')
         
-        # Apply specific styling, now including both Actual and Predicted labels
         plt.title("TruthLens Evaluation: Confusion Matrix", fontsize=14)
         ax.set_ylabel("Actual label", fontsize=12) 
         ax.set_xlabel("Predicted label", fontsize=12)
 
         ax.grid(False)
         
-        # Saving it as a high-resolution file
+        #Save it
         plt.tight_layout()
         plt.savefig('confusion_matrix1.png', dpi=300, bbox_inches='tight')
         print("🟦 Saved Confusion Matrix to 'confusion_matrix1.png'")
