@@ -3,8 +3,10 @@ How to install TruthLens
 TruthLens is a browser extension that scans news artcles for hyperpartisan and manipulative language.
 
 Before you start:
- - Chromium based browser: Google chrome, Microsft edge, Brave, others.
- - The source code: Make sure you have downloaded or cloned the TruthLens extension folder to your pc.
+ - You need a Chromium based browser: Google chrome, Microsft edge, Brave, others.
+ - The source code: Make sure you have the hyperpartisan_api and hyperpartisan_extension folders downloaded.
+ - Open hyperpartisan_api folder and install all the requirements.
+ - Then in terminal use uvicorn main:app --reload
  - Backend server: As TruthLens talks with an LLM, make sure the backend is running on http://127.0.0.1:8000/ befor eusing the extension.
 
 Installation steps (Brave browser):
